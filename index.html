@@ -12,7 +12,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body, #root { height: 100%; }
   body { background: #0B0B0D; color: #EDE8DF; font-family: 'Familjen Grotesk', sans-serif; -webkit-font-smoothing: antialiased; }
-  input { font-family: inherit; }
+  input, select { font-family: inherit; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
   .card { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; }
@@ -22,6 +22,13 @@
   ::-webkit-scrollbar { height: 8px; width: 8px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
   #boot { display:flex; align-items:center; justify-content:center; height:100%; color:#6B675E; font-size:14px; }
   .rolebtn { font-size:11px; padding:4px 10px; border-radius:999px; cursor:pointer; border:1px solid transparent; }
+  .chip { font-size:12px; padding:5px 11px; border-radius:999px; cursor:pointer; border:1px solid rgba(255,255,255,0.12); color:#8A857A; background:transparent; white-space:nowrap; }
+  .chip.on { background:rgba(200,162,75,0.15); border-color:rgba(200,162,75,0.4); color:#E8C879; }
+  .dateinput { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.12); color:#EDE8DF; border-radius:8px; padding:6px 10px; font-size:13px; color-scheme:dark; }
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:#8A857A; font-weight:500; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); }
+  td { padding:11px 12px; font-size:14px; border-bottom:1px solid rgba(255,255,255,0.05); }
+  tr:last-child td { border-bottom:none; }
 </style>
 </head>
 <body>
@@ -44,9 +51,11 @@ const brl  = (v) => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BR
 const brlc = (v) => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const today = new Date(); today.setHours(0,0,0,0);
 const parseYMD = (s) => { const [y,m,d] = String(s).split("-").map(Number); return new Date(y,m-1,d); };
+const toYMD = (d) => { const x=new Date(d); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); };
 const diffDias = (s) => Math.round((parseYMD(s) - today)/86400000);
 const dayDate  = (i) => { const d = new Date(today); d.setDate(d.getDate()+i); return d; };
 const fmtDate  = (d) => d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
+const fmtFull  = (s) => parseYMD(s).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"});
 const loadCfg = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {saldos:{},roles:{},apelidos:{}}; } catch { return {saldos:{},roles:{},apelidos:{}}; } };
 const saveCfg = (c) => { try { localStorage.setItem(KEY, JSON.stringify(c)); } catch {} };
 
@@ -57,6 +66,10 @@ function App() {
   const [secs, setSecs] = useState(0);
   const [syncing, setSyncing] = useState(true);
   const [erro, setErro] = useState(null);
+  // filtro de datas (vazio = horizonte padrão)
+  const [de, setDe] = useState("");
+  const [ate, setAte] = useState("");
+  const [atalho, setAtalho] = useState("90d");
 
   useEffect(() => { sync(); }, []);
   useEffect(() => { if (!lastSync) return; const t = setInterval(() => setSecs(Math.floor((Date.now()-lastSync.getTime())/1000)),1000); return () => clearInterval(t); }, [lastSync]);
@@ -78,7 +91,25 @@ function App() {
   const setSaldo  = (id,v) => setCfg((c)=>({ ...c, saldos:{...c.saldos,[id]:v} }));
   const setRole   = (id,r) => setCfg((c)=>({ ...c, roles:{...c.roles,[id]:r} }));
   const setApelido= (id,v) => setCfg((c)=>({ ...c, apelidos:{...c.apelidos,[id]:v} }));
-  const roleOf    = (id) => cfg.roles[id] || "op";
+
+  // aplica atalho de período
+  const aplicarAtalho = (a) => {
+    setAtalho(a);
+    if (a==="7d") { setDe(toYMD(today)); setAte(toYMD(dayDate(7))); }
+    else if (a==="mes") { const fim=new Date(today.getFullYear(),today.getMonth()+1,0); setDe(toYMD(today)); setAte(toYMD(fim)); }
+    else if (a==="30d") { setDe(toYMD(today)); setAte(toYMD(dayDate(30))); }
+    else if (a==="90d") { setDe(""); setAte(""); }
+    else if (a==="tudo") { setDe(""); setAte(""); }
+  };
+
+  // janela efetiva (em offsets de dia a partir de hoje)
+  const janela = useMemo(() => {
+    let ini = 0, fim = HORIZON;
+    if (de)  ini = Math.max(0, diffDias(de));
+    if (ate) fim = Math.min(HORIZON, Math.max(0, diffDias(ate)));
+    if (fim < ini) fim = ini;
+    return { ini, fim };
+  }, [de, ate]);
 
   const calc = useMemo(() => {
     const mov = {};
@@ -98,26 +129,38 @@ function App() {
     });
     const op = contas.filter((c)=>c.role==="op");
     const cx = contas.filter((c)=>c.role==="cx");
+    const apelidoDe = {}; contas.forEach((c)=>{ apelidoDe[c.id]=c.apelido; });
 
     const opSerie = [];
     for (let i=0;i<=HORIZON;i++) opSerie.push(op.reduce((s,c)=>s+c.serie[i],0));
 
-    const chart = [];
+    const chartFull = [];
     for (let i=0;i<=HORIZON;i++){
-      const row = { label: fmtDate(dayDate(i)), __op__: opSerie[i] };
+      const row = { off:i, label: fmtDate(dayDate(i)), __op__: opSerie[i] };
       cx.forEach((c)=>{ row[c.id] = c.serie[i]; });
-      chart.push(row);
+      chartFull.push(row);
     }
+    const chart = chartFull.filter((r)=> r.off>=janela.ini && r.off<=janela.fim);
+
     const minOp = opSerie.length ? Math.min(...opSerie) : 0;
     const minIdx = opSerie.indexOf(minOp);
     const negIdx = opSerie.findIndex((t)=>t<0);
     const reservasHoje = cx.reduce((s,c)=>s+c.hoje,0);
 
-    return { contas, op, cx, chart, opHoje: opSerie[0]||0, minOp,
-      minDia: dayDate(minIdx<0?0:minIdx), primeiroNeg: negIdx===-1?null:dayDate(negIdx), reservasHoje };
-  }, [snapshot, cfg]);
+    // lista de lançamentos dentro da janela, ordenada por vencimento
+    const lista = snapshot.lancamentos
+      .map((l)=>({ ...l, off: Math.min(Math.max(diffDias(l.vencimento),0),HORIZON), apelido: apelidoDe[l.contaId] || l.contaNome || l.contaId }))
+      .filter((l)=> l.off>=janela.ini && l.off<=janela.fim)
+      .sort((a,b)=> parseYMD(a.vencimento)-parseYMD(b.vencimento));
+    const totEnt = lista.filter(l=>l.tipo==="entrada").reduce((s,l)=>s+l.valor,0);
+    const totSai = lista.filter(l=>l.tipo==="saida").reduce((s,l)=>s+l.valor,0);
 
-  const { op, cx, chart, opHoje, minOp, minDia, primeiroNeg, reservasHoje } = calc;
+    return { contas, op, cx, chart, opHoje: opSerie[0]||0, minOp,
+      minDia: dayDate(minIdx<0?0:minIdx), primeiroNeg: negIdx===-1?null:dayDate(negIdx), reservasHoje,
+      lista, totEnt, totSai };
+  }, [snapshot, cfg, janela]);
+
+  const { op, cx, chart, opHoje, minOp, minDia, primeiroNeg, reservasHoje, lista, totEnt, totSai } = calc;
   const wrap = { background: "radial-gradient(1200px 500px at 80% -10%, rgba(200,162,75,0.10), transparent 60%)", minHeight: "100%", padding: "28px 24px 48px" };
 
   const card = (c) => h("div",{key:c.id,className:"card",style:{padding:18}},
@@ -144,6 +187,8 @@ function App() {
       h("span",{className:"mono",style:{color:c.min<0?"#E08A7A":"#7FB89E"}}, brl(c.min)+" · "+fmtDate(dayDate(c.minIdx)))
     )
   );
+
+  const atalhos = [["7d","Próx. 7 dias"],["mes","Este mês"],["30d","Próx. 30 dias"],["90d","90 dias"]];
 
   return h("div",{style:wrap},
     h("div",{style:{maxWidth:1100, margin:"0 auto"}},
@@ -175,9 +220,23 @@ function App() {
         Kpi({label:"Guardado em caixinhas",value:brlc(reservasHoje),tone:"#8FCBC0",sub:"fora do operacional"})
       ),
 
+      // ===== FILTRO DE PERÍODO =====
+      h("div",{className:"card",style:{padding:16,marginBottom:20,display:"flex",flexWrap:"wrap",alignItems:"center",gap:12}},
+        h("span",{className:"uplabel"},"Período"),
+        h("div",{style:{display:"flex",gap:8,flexWrap:"wrap"}},
+          atalhos.map(([k,txt])=>h("span",{key:k,className:"chip"+(atalho===k?" on":""),onClick:()=>aplicarAtalho(k)},txt))
+        ),
+        h("div",{style:{display:"flex",alignItems:"center",gap:8,marginLeft:"auto"}},
+          h("span",{style:{color:"#8A857A",fontSize:13}},"De"),
+          h("input",{type:"date",className:"dateinput",value:de,onChange:(e)=>{ setDe(e.target.value); setAtalho(""); }}),
+          h("span",{style:{color:"#8A857A",fontSize:13}},"até"),
+          h("input",{type:"date",className:"dateinput",value:ate,onChange:(e)=>{ setAte(e.target.value); setAtalho(""); }})
+        )
+      ),
+
       h("div",{className:"card",style:{padding:20,marginBottom:28}},
         h("div",{style:{display:"flex",flexWrap:"wrap",alignItems:"center",gap:"8px 20px",marginBottom:16}},
-          h("span",{className:"uplabel"},"Projeção 90 dias"),
+          h("span",{className:"uplabel"},"Projeção do saldo"),
           h("span",{style:{display:"flex",alignItems:"center",gap:8,fontSize:14}},
             h("span",{style:{width:12,height:3,borderRadius:2,background:OP_COR}}), "Operacional"),
           cx.map((c)=>h("span",{key:c.id,style:{display:"flex",alignItems:"center",gap:8,fontSize:14}},
@@ -187,7 +246,7 @@ function App() {
           h(ResponsiveContainer,null,
             h(LineChart,{data:chart,margin:{top:6,right:8,left:4,bottom:0}},
               h(CartesianGrid,{stroke:"rgba(255,255,255,0.06)",vertical:false}),
-              h(XAxis,{dataKey:"label",tick:{fill:"#6B675E",fontSize:11,fontFamily:"JetBrains Mono"},interval:14,tickLine:false,axisLine:{stroke:"rgba(255,255,255,0.1)"}}),
+              h(XAxis,{dataKey:"label",tick:{fill:"#6B675E",fontSize:11,fontFamily:"JetBrains Mono"},interval:"preserveStartEnd",minTickGap:40,tickLine:false,axisLine:{stroke:"rgba(255,255,255,0.1)"}}),
               h(YAxis,{tickFormatter:(v)=>Math.round(v/1000)+"k",tick:{fill:"#6B675E",fontSize:11,fontFamily:"JetBrains Mono"},tickLine:false,axisLine:false,width:46}),
               h(Tooltip,{contentStyle:{background:"#16161A",border:"1px solid rgba(255,255,255,0.12)",borderRadius:12},labelStyle:{color:"#8A857A"},
                 formatter:(v,n)=>[brl(v), n==="__op__"?"Operacional":((cx.find(c=>c.id===n)||{}).apelido||n)]}),
@@ -199,6 +258,40 @@ function App() {
         )
       ),
 
+      // ===== LISTA DE LANÇAMENTOS =====
+      h("div",{className:"sechead"},"Lançamentos no período · "+lista.length),
+      h("div",{className:"card",style:{padding:0,marginBottom:28,overflow:"hidden"}},
+        h("div",{style:{overflowX:"auto"}},
+          h("table",null,
+            h("thead",null,h("tr",null,
+              h("th",null,"Descrição"), h("th",null,"Conta"), h("th",null,"Vencimento"),
+              h("th",{style:{textAlign:"center"}},"Tipo"), h("th",{style:{textAlign:"right"}},"Valor")
+            )),
+            h("tbody",null,
+              lista.length===0
+                ? h("tr",null,h("td",{colSpan:5,style:{textAlign:"center",color:"#6B675E",padding:"24px"}},"Nenhum lançamento neste período."))
+                : lista.map((l,i)=>h("tr",{key:i},
+                    h("td",null, l.descricao || "—"),
+                    h("td",{style:{color:"#8A857A"}}, l.apelido),
+                    h("td",{className:"mono",style:{color:"#8A857A"}}, fmtFull(l.vencimento)),
+                    h("td",{style:{textAlign:"center"}},
+                      h("span",{style:{fontSize:12,padding:"3px 9px",borderRadius:999,
+                        background:l.tipo==="entrada"?"rgba(127,184,158,0.15)":"rgba(224,138,122,0.15)",
+                        color:l.tipo==="entrada"?"#8FCBC0":"#E08A7A"}}, l.tipo==="entrada"?"Entra":"Sai")),
+                    h("td",{className:"mono",style:{textAlign:"right",color:l.tipo==="entrada"?"#8FCBC0":"#E08A7A"}},
+                      (l.tipo==="entrada"?"+":"−")+brlc(l.valor).replace("R$","R$ "))
+                  ))
+            ),
+            lista.length>0 && h("tfoot",null,h("tr",null,
+              h("td",{colSpan:4,style:{borderTop:"1px solid rgba(255,255,255,0.12)",color:"#8A857A",fontSize:13}},
+                "Entra "+brl(totEnt)+"  ·  Sai "+brl(totSai)),
+              h("td",{className:"mono",style:{borderTop:"1px solid rgba(255,255,255,0.12)",textAlign:"right",fontWeight:600,color:(totEnt-totSai)<0?"#E08A7A":"#8FCBC0"}},
+                brl(totEnt-totSai))
+            ))
+          )
+        )
+      ),
+
       h("div",{className:"sechead"},"Operacional · caixa mãe"),
       h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",marginBottom:28}}, op.map(card)),
 
@@ -206,7 +299,7 @@ function App() {
       cx.length>0 && h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))"}}, cx.map(card)),
 
       h("p",{style:{color:"#56524A",fontSize:12,marginTop:32}},
-        "Marque cada conta como Operacional (caixa de trabalho) ou Caixinha (dinheiro reservado). O Operacional soma todas as contas de trabalho numa linha só, então transferências entre Asaas e Itaú se anulam. Saldos e apelidos ficam salvos neste navegador.")
+        "O filtro de período recorta o gráfico e a lista. Marque cada conta como Operacional ou Caixinha; o Operacional soma as contas de trabalho numa linha só. Saldos e apelidos ficam salvos neste navegador.")
     )
   );
 }
