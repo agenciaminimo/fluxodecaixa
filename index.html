@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0B0B0D" />
+<title>Saldo Projetado · Mínimo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; }
+  body { background: #0B0B0D; color: #EDE8DF; font-family: 'Familjen Grotesk', sans-serif; -webkit-font-smoothing: antialiased; }
+  input { font-family: inherit; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .card { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; }
+  .uplabel { color: #8A857A; font-size: 11px; text-transform: uppercase; font-weight: 500; letter-spacing: 0.04em; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  ::-webkit-scrollbar { height: 8px; width: 8px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+const { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } = Recharts;
+
+// ===== CONFIG =====
+const SYNC_URL = "/api/gestaoclick-sync";      // backend no mesmo projeto
+const HORIZON = 90;
+const STORAGE_KEY = "minimo_saldos_iniciais";
+const PALETTE = ["#C8A24B","#6FA8A0","#9A7BB0","#C97B7B","#7B92C9","#8FB86F","#C98F5A","#5AAFC9"];
+
+const brl  = (v) => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+const brlc = (v) => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const today = new Date(); today.setHours(0,0,0,0);
+const parseYMD = (s) => { const [y,m,d] = String(s).split("-").map(Number); return new Date(y,m-1,d); };
+const diffDias = (s) => Math.round((parseYMD(s) - today)/86400000);
+const dayDate  = (i) => { const d = new Date(today); d.setDate(d.getDate()+i); return d; };
+const fmtDate  = (d) => d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
+
+const loadSaldos = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } };
+const saveSaldos = (s) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {} };
+
+function App() {
+  const [snapshot, setSnapshot] = useState({ contas: [], lancamentos: [] });
+  const [saldos, setSaldos] = useState(loadSaldos);
+  const [lastSync, setLastSync] = useState(null);
+  const [secs, setSecs] = useState(0);
+  const [syncing, setSyncing] = useState(true);
+  const [erro, setErro] = useState(null);
+
+  useEffect(() => { sync(); }, []);
+  useEffect(() => { if (!lastSync) return; const t = setInterval(() => setSecs(Math.floor((Date.now()-lastSync.getTime())/1000)),1000); return () => clearInterval(t); }, [lastSync]);
+  useEffect(() => { saveSaldos(saldos); }, [saldos]);
+
+  const sync = async () => {
+    setSyncing(true); setErro(null);
+    try {
+      const res = await fetch(SYNC_URL);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const json = await res.json();
+      if (json.erro) throw new Error(json.erro);
+      setSnapshot({ contas: json.contas || [], lancamentos: json.lancamentos || [] });
+      setLastSync(new Date()); setSecs(0);
+    } catch (e) { setErro(String(e.message || e)); }
+    setSyncing(false);
+  };
+
+  const { chart, contas, consolidadoHoje, menor, menorDia, primeiroNegativo } = useMemo(() => {
+    const cs = snapshot.contas.map((c,i) => ({ ...c, cor: PALETTE[i % PALETTE.length] }));
+    const mov = {};
+    snapshot.lancamentos.forEach((l) => {
+      const off = Math.min(Math.max(diffDias(l.vencimento),0), HORIZON);
+      mov[l.contaId] = mov[l.contaId] || {};
+      mov[l.contaId][off] = (mov[l.contaId][off]||0) + (l.tipo==="entrada" ? l.valor : -l.valor);
+    });
+    const contasCalc = cs.map((c) => {
+      let saldo = Number(saldos[c.id] || 0); const serie = [];
+      for (let i=0;i<=HORIZON;i++){ saldo += (mov[c.id] && mov[c.id][i] || 0); serie.push(saldo); }
+      const min = Math.min(...serie);
+      return { ...c, serie, hoje: serie[0], min, minIdx: serie.indexOf(min) };
+    });
+    const chartData = [];
+    for (let i=0;i<=HORIZON;i++){
+      const row = { label: fmtDate(dayDate(i)) }; let total = 0;
+      contasCalc.forEach((c) => { row[c.id] = c.serie[i]; total += c.serie[i]; });
+      row.total = total; chartData.push(row);
+    }
+    const totals = chartData.map((r) => r.total);
+    const minTotal = totals.length ? Math.min(...totals) : 0;
+    const minIdx = totals.indexOf(minTotal);
+    const negIdx = totals.findIndex((t) => t < 0);
+    return { chart: chartData, contas: contasCalc, consolidadoHoje: totals[0]||0, menor: minTotal,
+      menorDia: dayDate(minIdx<0?0:minIdx), primeiroNegativo: negIdx===-1?null:dayDate(negIdx) };
+  }, [snapshot, saldos]);
+
+  const wrap = { background: "radial-gradient(1200px 500px at 80% -10%, rgba(200,162,75,0.10), transparent 60%)", minHeight: "100%", padding: "28px 24px 48px" };
+
+  return (
+    <div style={wrap}>
+      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        {/* Header */}
+        <div style={{ display:"flex", flexWrap:"wrap", alignItems:"flex-end", justifyContent:"space-between", gap:16, marginBottom:28 }}>
+          <div>
+            <div className="uplabel" style={{ letterSpacing:"0.18em", marginBottom:4 }}>Mínimo · Financeiro</div>
+            <h1 style={{ fontFamily:"'Instrument Serif', serif", fontSize:"2.6rem", lineHeight:1, fontWeight:400 }}>Saldo projetado</h1>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:8, color: erro ? "#E08A7A" : "#7FB89E" }}>
+                <span style={{ width:8, height:8, borderRadius:8, background: erro ? "#E08A7A" : "#7FB89E", animation:"pulse 2s infinite" }}></span>
+                <span style={{ fontSize:12, fontWeight:500 }}>{erro ? "Falha na sincronização" : "Sincronizado com Gestão Click"}</span>
+              </div>
+              <div className="mono" style={{ fontSize:12, color:"#6B675E", marginTop:2 }}>{lastSync ? "há "+secs+"s" : "—"}</div>
+            </div>
+            <button onClick={sync} disabled={syncing}
+              style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(200,162,75,0.12)", border:"1px solid rgba(200,162,75,0.35)", color:"#E8C879", borderRadius:999, padding:"9px 16px", fontSize:14, fontWeight:500, cursor:"pointer" }}>
+              <span style={{ display:"inline-block", animation: syncing ? "spin 0.7s linear infinite":"none" }}>⟳</span>
+              {syncing ? "Puxando…" : "Atualizar"}
+            </button>
+          </div>
+        </div>
+
+        {erro && <div style={{ background:"rgba(224,138,122,0.12)", border:"1px solid rgba(224,138,122,0.35)", color:"#E08A7A", borderRadius:12, padding:"12px 16px", marginBottom:24, fontSize:14 }}>Erro: {erro}</div>}
+
+        {/* KPIs */}
+        <div style={{ display:"grid", gap:16, gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))", marginBottom:28 }}>
+          <Kpi label="Caixa consolidado hoje" value={brlc(consolidadoHoje)} tone="#EDE8DF" />
+          <Kpi label="Menor saldo projetado (90d)" value={brlc(menor)} sub={fmtDate(menorDia)} tone={menor<0?"#E08A7A":"#7FB89E"} />
+          <Kpi label="Primeiro dia no vermelho" value={primeiroNegativo ? fmtDate(primeiroNegativo) : "Nenhum"} tone={primeiroNegativo?"#E08A7A":"#7FB89E"} />
+        </div>
+
+        {/* Gráfico */}
+        <div className="card" style={{ padding:20, marginBottom:28 }}>
+          <div style={{ display:"flex", flexWrap:"wrap", alignItems:"center", gap:"8px 20px", marginBottom:16 }}>
+            <span className="uplabel">Projeção 90 dias</span>
+            {contas.map((c) => (
+              <span key={c.id} style={{ display:"flex", alignItems:"center", gap:8, fontSize:14 }}>
+                <span style={{ width:10, height:10, borderRadius:9, background:c.cor }}></span>{c.nome}
+              </span>
+            ))}
+          </div>
+          <div style={{ width:"100%", height:300 }}>
+            <ResponsiveContainer>
+              <LineChart data={chart} margin={{ top:6, right:8, left:4, bottom:0 }}>
+                <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fill:"#6B675E", fontSize:11, fontFamily:"JetBrains Mono" }} interval={14} tickLine={false} axisLine={{ stroke:"rgba(255,255,255,0.1)" }} />
+                <YAxis tickFormatter={(v)=>Math.round(v/1000)+"k"} tick={{ fill:"#6B675E", fontSize:11, fontFamily:"JetBrains Mono" }} tickLine={false} axisLine={false} width={46} />
+                <Tooltip contentStyle={{ background:"#16161A", border:"1px solid rgba(255,255,255,0.12)", borderRadius:12 }} labelStyle={{ color:"#8A857A" }} formatter={(v,n)=>[brl(v), (contas.find(c=>c.id===n)||{}).nome || n]} />
+                <ReferenceLine y={0} stroke="#E08A7A" strokeDasharray="4 4" strokeOpacity={0.6} />
+                {contas.map((c) => <Line key={c.id} type="monotone" dataKey={c.id} stroke={c.cor} strokeWidth={2} dot={false} />)}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Cards por conta */}
+        <div style={{ display:"grid", gap:16, gridTemplateColumns:"repeat(auto-fit, minmax(250px, 1fr))" }}>
+          {contas.map((c) => (
+            <div key={c.id} className="card" style={{ padding:20 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
+                <span style={{ width:10, height:10, borderRadius:9, background:c.cor }}></span>
+                <span style={{ fontWeight:600 }}>{c.nome}</span>
+              </div>
+              <div className="uplabel" style={{ marginBottom:4 }}>✎ Saldo inicial (você informa)</div>
+              <div style={{ display:"flex", alignItems:"baseline", gap:4, marginBottom:16 }}>
+                <span className="mono" style={{ color:"#8A857A" }}>R$</span>
+                <input type="number" value={saldos[c.id] ?? ""} placeholder="0"
+                  onChange={(e)=>setSaldos((s)=>({ ...s, [c.id]: parseFloat(e.target.value)||0 }))}
+                  className="mono" style={{ background:"transparent", border:"none", outline:"none", color: c.hoje<0?"#E08A7A":"#EDE8DF", fontSize:"1.5rem", width:"100%" }} />
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between", fontSize:14, borderTop:"1px solid rgba(255,255,255,0.07)", paddingTop:12 }}>
+                <span style={{ color:"#8A857A" }}>Menor em 90d</span>
+                <span className="mono" style={{ color: c.min<0?"#E08A7A":"#7FB89E" }}>{brl(c.min)} · {fmtDate(dayDate(c.minIdx))}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p style={{ color:"#56524A", fontSize:12, marginTop:32 }}>
+          Saldo inicial é informado por você (a API do Gestão Click não fornece o saldo da conta) e fica salvo neste navegador. Os lançamentos a vencer vêm da API a cada Atualizar.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Kpi({ label, value, sub, tone }) {
+  return (
+    <div className="card" style={{ padding:20 }}>
+      <div className="uplabel" style={{ marginBottom:12 }}>{label}</div>
+      <div className="mono" style={{ color:tone, fontSize:"1.6rem", fontWeight:500 }}>{value}</div>
+      {sub && <div className="mono" style={{ color:"#6B675E", fontSize:12, marginTop:4 }}>{sub}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
