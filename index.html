@@ -8,10 +8,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body, #root { height: 100%; }
@@ -23,16 +19,21 @@
   .uplabel { color: #8A857A; font-size: 11px; text-transform: uppercase; font-weight: 500; letter-spacing: 0.04em; }
   .mono { font-family: 'JetBrains Mono', monospace; }
   ::-webkit-scrollbar { height: 8px; width: 8px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
+  #boot { display:flex; align-items:center; justify-content:center; height:100%; color:#6B675E; font-size:14px; }
 </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const { useState, useEffect, useMemo } = React;
-const { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } = Recharts;
+<div id="root"><div id="boot">Carregando…</div></div>
+
+<script type="module">
+import React, { useState, useEffect, useMemo } from "https://esm.sh/react@18.2.0";
+import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "https://esm.sh/recharts@2.12.7?deps=react@18.2.0,react-dom@18.2.0";
+
+const h = React.createElement;
 
 // ===== CONFIG =====
-const SYNC_URL = "/api/gestaoclick-sync";      // backend no mesmo projeto
+const SYNC_URL = "/api/gestaoclick-sync";
 const HORIZON = 90;
 const STORAGE_KEY = "minimo_saldos_iniciais";
 const PALETTE = ["#C8A24B","#6FA8A0","#9A7BB0","#C97B7B","#7B92C9","#8FB86F","#C98F5A","#5AAFC9"];
@@ -44,7 +45,6 @@ const parseYMD = (s) => { const [y,m,d] = String(s).split("-").map(Number); retu
 const diffDias = (s) => Math.round((parseYMD(s) - today)/86400000);
 const dayDate  = (i) => { const d = new Date(today); d.setDate(d.getDate()+i); return d; };
 const fmtDate  = (d) => d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
-
 const loadSaldos = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } };
 const saveSaldos = (s) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {} };
 
@@ -73,7 +73,7 @@ function App() {
     setSyncing(false);
   };
 
-  const { chart, contas, consolidadoHoje, menor, menorDia, primeiroNegativo } = useMemo(() => {
+  const calc = useMemo(() => {
     const cs = snapshot.contas.map((c,i) => ({ ...c, cor: PALETTE[i % PALETTE.length] }));
     const mov = {};
     snapshot.lancamentos.forEach((l) => {
@@ -83,7 +83,7 @@ function App() {
     });
     const contasCalc = cs.map((c) => {
       let saldo = Number(saldos[c.id] || 0); const serie = [];
-      for (let i=0;i<=HORIZON;i++){ saldo += (mov[c.id] && mov[c.id][i] || 0); serie.push(saldo); }
+      for (let i=0;i<=HORIZON;i++){ saldo += ((mov[c.id]&&mov[c.id][i])||0); serie.push(saldo); }
       const min = Math.min(...serie);
       return { ...c, serie, hoje: serie[0], min, minIdx: serie.indexOf(min) };
     });
@@ -101,108 +101,89 @@ function App() {
       menorDia: dayDate(minIdx<0?0:minIdx), primeiroNegativo: negIdx===-1?null:dayDate(negIdx) };
   }, [snapshot, saldos]);
 
+  const { chart, contas, consolidadoHoje, menor, menorDia, primeiroNegativo } = calc;
   const wrap = { background: "radial-gradient(1200px 500px at 80% -10%, rgba(200,162,75,0.10), transparent 60%)", minHeight: "100%", padding: "28px 24px 48px" };
 
-  return (
-    <div style={wrap}>
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        {/* Header */}
-        <div style={{ display:"flex", flexWrap:"wrap", alignItems:"flex-end", justifyContent:"space-between", gap:16, marginBottom:28 }}>
-          <div>
-            <div className="uplabel" style={{ letterSpacing:"0.18em", marginBottom:4 }}>Mínimo · Financeiro</div>
-            <h1 style={{ fontFamily:"'Instrument Serif', serif", fontSize:"2.6rem", lineHeight:1, fontWeight:400 }}>Saldo projetado</h1>
-          </div>
-          <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-            <div style={{ textAlign:"right" }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:8, color: erro ? "#E08A7A" : "#7FB89E" }}>
-                <span style={{ width:8, height:8, borderRadius:8, background: erro ? "#E08A7A" : "#7FB89E", animation:"pulse 2s infinite" }}></span>
-                <span style={{ fontSize:12, fontWeight:500 }}>{erro ? "Falha na sincronização" : "Sincronizado com Gestão Click"}</span>
-              </div>
-              <div className="mono" style={{ fontSize:12, color:"#6B675E", marginTop:2 }}>{lastSync ? "há "+secs+"s" : "—"}</div>
-            </div>
-            <button onClick={sync} disabled={syncing}
-              style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(200,162,75,0.12)", border:"1px solid rgba(200,162,75,0.35)", color:"#E8C879", borderRadius:999, padding:"9px 16px", fontSize:14, fontWeight:500, cursor:"pointer" }}>
-              <span style={{ display:"inline-block", animation: syncing ? "spin 0.7s linear infinite":"none" }}>⟳</span>
-              {syncing ? "Puxando…" : "Atualizar"}
-            </button>
-          </div>
-        </div>
-
-        {erro && <div style={{ background:"rgba(224,138,122,0.12)", border:"1px solid rgba(224,138,122,0.35)", color:"#E08A7A", borderRadius:12, padding:"12px 16px", marginBottom:24, fontSize:14 }}>Erro: {erro}</div>}
-
-        {/* KPIs */}
-        <div style={{ display:"grid", gap:16, gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))", marginBottom:28 }}>
-          <Kpi label="Caixa consolidado hoje" value={brlc(consolidadoHoje)} tone="#EDE8DF" />
-          <Kpi label="Menor saldo projetado (90d)" value={brlc(menor)} sub={fmtDate(menorDia)} tone={menor<0?"#E08A7A":"#7FB89E"} />
-          <Kpi label="Primeiro dia no vermelho" value={primeiroNegativo ? fmtDate(primeiroNegativo) : "Nenhum"} tone={primeiroNegativo?"#E08A7A":"#7FB89E"} />
-        </div>
-
-        {/* Gráfico */}
-        <div className="card" style={{ padding:20, marginBottom:28 }}>
-          <div style={{ display:"flex", flexWrap:"wrap", alignItems:"center", gap:"8px 20px", marginBottom:16 }}>
-            <span className="uplabel">Projeção 90 dias</span>
-            {contas.map((c) => (
-              <span key={c.id} style={{ display:"flex", alignItems:"center", gap:8, fontSize:14 }}>
-                <span style={{ width:10, height:10, borderRadius:9, background:c.cor }}></span>{c.nome}
-              </span>
-            ))}
-          </div>
-          <div style={{ width:"100%", height:300 }}>
-            <ResponsiveContainer>
-              <LineChart data={chart} margin={{ top:6, right:8, left:4, bottom:0 }}>
-                <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fill:"#6B675E", fontSize:11, fontFamily:"JetBrains Mono" }} interval={14} tickLine={false} axisLine={{ stroke:"rgba(255,255,255,0.1)" }} />
-                <YAxis tickFormatter={(v)=>Math.round(v/1000)+"k"} tick={{ fill:"#6B675E", fontSize:11, fontFamily:"JetBrains Mono" }} tickLine={false} axisLine={false} width={46} />
-                <Tooltip contentStyle={{ background:"#16161A", border:"1px solid rgba(255,255,255,0.12)", borderRadius:12 }} labelStyle={{ color:"#8A857A" }} formatter={(v,n)=>[brl(v), (contas.find(c=>c.id===n)||{}).nome || n]} />
-                <ReferenceLine y={0} stroke="#E08A7A" strokeDasharray="4 4" strokeOpacity={0.6} />
-                {contas.map((c) => <Line key={c.id} type="monotone" dataKey={c.id} stroke={c.cor} strokeWidth={2} dot={false} />)}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Cards por conta */}
-        <div style={{ display:"grid", gap:16, gridTemplateColumns:"repeat(auto-fit, minmax(250px, 1fr))" }}>
-          {contas.map((c) => (
-            <div key={c.id} className="card" style={{ padding:20 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
-                <span style={{ width:10, height:10, borderRadius:9, background:c.cor }}></span>
-                <span style={{ fontWeight:600 }}>{c.nome}</span>
-              </div>
-              <div className="uplabel" style={{ marginBottom:4 }}>✎ Saldo inicial (você informa)</div>
-              <div style={{ display:"flex", alignItems:"baseline", gap:4, marginBottom:16 }}>
-                <span className="mono" style={{ color:"#8A857A" }}>R$</span>
-                <input type="number" value={saldos[c.id] ?? ""} placeholder="0"
-                  onChange={(e)=>setSaldos((s)=>({ ...s, [c.id]: parseFloat(e.target.value)||0 }))}
-                  className="mono" style={{ background:"transparent", border:"none", outline:"none", color: c.hoje<0?"#E08A7A":"#EDE8DF", fontSize:"1.5rem", width:"100%" }} />
-              </div>
-              <div style={{ display:"flex", justifyContent:"space-between", fontSize:14, borderTop:"1px solid rgba(255,255,255,0.07)", paddingTop:12 }}>
-                <span style={{ color:"#8A857A" }}>Menor em 90d</span>
-                <span className="mono" style={{ color: c.min<0?"#E08A7A":"#7FB89E" }}>{brl(c.min)} · {fmtDate(dayDate(c.minIdx))}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <p style={{ color:"#56524A", fontSize:12, marginTop:32 }}>
-          Saldo inicial é informado por você (a API do Gestão Click não fornece o saldo da conta) e fica salvo neste navegador. Os lançamentos a vencer vêm da API a cada Atualizar.
-        </p>
-      </div>
-    </div>
+  return h("div",{style:wrap},
+    h("div",{style:{maxWidth:1100, margin:"0 auto"}},
+      h("div",{style:{display:"flex",flexWrap:"wrap",alignItems:"flex-end",justifyContent:"space-between",gap:16,marginBottom:28}},
+        h("div",null,
+          h("div",{className:"uplabel",style:{letterSpacing:"0.18em",marginBottom:4}},"Mínimo · Financeiro"),
+          h("h1",{style:{fontFamily:"'Instrument Serif', serif",fontSize:"2.6rem",lineHeight:1,fontWeight:400}},"Saldo projetado")
+        ),
+        h("div",{style:{display:"flex",alignItems:"center",gap:16}},
+          h("div",{style:{textAlign:"right"}},
+            h("div",{style:{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:8,color:erro?"#E08A7A":"#7FB89E"}},
+              h("span",{style:{width:8,height:8,borderRadius:8,background:erro?"#E08A7A":"#7FB89E",animation:"pulse 2s infinite"}}),
+              h("span",{style:{fontSize:12,fontWeight:500}}, erro?"Falha na sincronização":"Sincronizado com Gestão Click")
+            ),
+            h("div",{className:"mono",style:{fontSize:12,color:"#6B675E",marginTop:2}}, lastSync?("há "+secs+"s"):"—")
+          ),
+          h("button",{onClick:sync,disabled:syncing,style:{display:"flex",alignItems:"center",gap:8,background:"rgba(200,162,75,0.12)",border:"1px solid rgba(200,162,75,0.35)",color:"#E8C879",borderRadius:999,padding:"9px 16px",fontSize:14,fontWeight:500,cursor:"pointer"}},
+            h("span",{style:{display:"inline-block",animation:syncing?"spin 0.7s linear infinite":"none"}},"\u27F3"),
+            syncing?"Puxando\u2026":"Atualizar"
+          )
+        )
+      ),
+      erro && h("div",{style:{background:"rgba(224,138,122,0.12)",border:"1px solid rgba(224,138,122,0.35)",color:"#E08A7A",borderRadius:12,padding:"12px 16px",marginBottom:24,fontSize:14}},"Erro: "+erro),
+      h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))",marginBottom:28}},
+        Kpi({label:"Caixa consolidado hoje",value:brlc(consolidadoHoje),tone:"#EDE8DF"}),
+        Kpi({label:"Menor saldo projetado (90d)",value:brlc(menor),sub:fmtDate(menorDia),tone:menor<0?"#E08A7A":"#7FB89E"}),
+        Kpi({label:"Primeiro dia no vermelho",value:primeiroNegativo?fmtDate(primeiroNegativo):"Nenhum",tone:primeiroNegativo?"#E08A7A":"#7FB89E"})
+      ),
+      h("div",{className:"card",style:{padding:20,marginBottom:28}},
+        h("div",{style:{display:"flex",flexWrap:"wrap",alignItems:"center",gap:"8px 20px",marginBottom:16}},
+          h("span",{className:"uplabel"},"Proje\u00e7\u00e3o 90 dias"),
+          contas.map((c)=>h("span",{key:c.id,style:{display:"flex",alignItems:"center",gap:8,fontSize:14}},
+            h("span",{style:{width:10,height:10,borderRadius:9,background:c.cor}}), c.nome))
+        ),
+        h("div",{style:{width:"100%",height:300}},
+          h(ResponsiveContainer,null,
+            h(LineChart,{data:chart,margin:{top:6,right:8,left:4,bottom:0}},
+              h(CartesianGrid,{stroke:"rgba(255,255,255,0.06)",vertical:false}),
+              h(XAxis,{dataKey:"label",tick:{fill:"#6B675E",fontSize:11,fontFamily:"JetBrains Mono"},interval:14,tickLine:false,axisLine:{stroke:"rgba(255,255,255,0.1)"}}),
+              h(YAxis,{tickFormatter:(v)=>Math.round(v/1000)+"k",tick:{fill:"#6B675E",fontSize:11,fontFamily:"JetBrains Mono"},tickLine:false,axisLine:false,width:46}),
+              h(Tooltip,{contentStyle:{background:"#16161A",border:"1px solid rgba(255,255,255,0.12)",borderRadius:12},labelStyle:{color:"#8A857A"},formatter:(v,n)=>[brl(v),(contas.find(c=>c.id===n)||{}).nome||n]}),
+              h(ReferenceLine,{y:0,stroke:"#E08A7A",strokeDasharray:"4 4",strokeOpacity:0.6}),
+              contas.map((c)=>h(Line,{key:c.id,type:"monotone",dataKey:c.id,stroke:c.cor,strokeWidth:2,dot:false}))
+            )
+          )
+        )
+      ),
+      h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(250px, 1fr))"}},
+        contas.map((c)=>h("div",{key:c.id,className:"card",style:{padding:20}},
+          h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:16}},
+            h("span",{style:{width:10,height:10,borderRadius:9,background:c.cor}}),
+            h("span",{style:{fontWeight:600}},c.nome)
+          ),
+          h("div",{className:"uplabel",style:{marginBottom:4}},"\u270E Saldo inicial (voc\u00ea informa)"),
+          h("div",{style:{display:"flex",alignItems:"baseline",gap:4,marginBottom:16}},
+            h("span",{className:"mono",style:{color:"#8A857A"}},"R$"),
+            h("input",{type:"number",value:saldos[c.id]??"",placeholder:"0",
+              onChange:(e)=>setSaldos((s)=>({...s,[c.id]:parseFloat(e.target.value)||0})),
+              className:"mono",style:{background:"transparent",border:"none",outline:"none",color:c.hoje<0?"#E08A7A":"#EDE8DF",fontSize:"1.5rem",width:"100%"}})
+          ),
+          h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:14,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:12}},
+            h("span",{style:{color:"#8A857A"}},"Menor em 90d"),
+            h("span",{className:"mono",style:{color:c.min<0?"#E08A7A":"#7FB89E"}}, brl(c.min)+" \u00b7 "+fmtDate(dayDate(c.minIdx)))
+          )
+        ))
+      ),
+      h("p",{style:{color:"#56524A",fontSize:12,marginTop:32}},
+        "Saldo inicial \u00e9 informado por voc\u00ea (a API do Gest\u00e3o Click n\u00e3o fornece o saldo da conta) e fica salvo neste navegador. Os lan\u00e7amentos a vencer v\u00eam da API a cada Atualizar.")
+    )
   );
 }
 
-function Kpi({ label, value, sub, tone }) {
-  return (
-    <div className="card" style={{ padding:20 }}>
-      <div className="uplabel" style={{ marginBottom:12 }}>{label}</div>
-      <div className="mono" style={{ color:tone, fontSize:"1.6rem", fontWeight:500 }}>{value}</div>
-      {sub && <div className="mono" style={{ color:"#6B675E", fontSize:12, marginTop:4 }}>{sub}</div>}
-    </div>
+function Kpi({label,value,sub,tone}) {
+  return h("div",{className:"card",style:{padding:20}},
+    h("div",{className:"uplabel",style:{marginBottom:12}},label),
+    h("div",{className:"mono",style:{color:tone,fontSize:"1.6rem",fontWeight:500}},value),
+    sub && h("div",{className:"mono",style:{color:"#6B675E",fontSize:12,marginTop:4}},sub)
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+createRoot(document.getElementById("root")).render(h(App));
 </script>
 </body>
 </html>
