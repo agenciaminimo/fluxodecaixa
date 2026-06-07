@@ -18,8 +18,10 @@
   .card { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; }
   .uplabel { color: #8A857A; font-size: 11px; text-transform: uppercase; font-weight: 500; letter-spacing: 0.04em; }
   .mono { font-family: 'JetBrains Mono', monospace; }
+  .sechead { color:#8A857A; font-size:12px; text-transform:uppercase; letter-spacing:0.1em; font-weight:600; margin:8px 2px 12px; }
   ::-webkit-scrollbar { height: 8px; width: 8px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
   #boot { display:flex; align-items:center; justify-content:center; height:100%; color:#6B675E; font-size:14px; }
+  .rolebtn { font-size:11px; padding:4px 10px; border-radius:999px; cursor:pointer; border:1px solid transparent; }
 </style>
 </head>
 <body>
@@ -32,11 +34,11 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 
 const h = React.createElement;
 
-// ===== CONFIG =====
 const SYNC_URL = "/api/gestaoclick-sync";
 const HORIZON = 90;
-const STORAGE_KEY = "minimo_saldos_iniciais";
-const PALETTE = ["#C8A24B","#6FA8A0","#9A7BB0","#C97B7B","#7B92C9","#8FB86F","#C98F5A","#5AAFC9"];
+const KEY = "minimo_fluxo_config_v2";
+const OP_COR = "#C8A24B";
+const CX_PALETTE = ["#6FA8A0","#9A7BB0","#C97B7B","#7B92C9","#8FB86F","#C98F5A"];
 
 const brl  = (v) => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
 const brlc = (v) => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
@@ -45,12 +47,12 @@ const parseYMD = (s) => { const [y,m,d] = String(s).split("-").map(Number); retu
 const diffDias = (s) => Math.round((parseYMD(s) - today)/86400000);
 const dayDate  = (i) => { const d = new Date(today); d.setDate(d.getDate()+i); return d; };
 const fmtDate  = (d) => d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
-const loadSaldos = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } };
-const saveSaldos = (s) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {} };
+const loadCfg = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {saldos:{},roles:{},apelidos:{}}; } catch { return {saldos:{},roles:{},apelidos:{}}; } };
+const saveCfg = (c) => { try { localStorage.setItem(KEY, JSON.stringify(c)); } catch {} };
 
 function App() {
   const [snapshot, setSnapshot] = useState({ contas: [], lancamentos: [] });
-  const [saldos, setSaldos] = useState(loadSaldos);
+  const [cfg, setCfg] = useState(loadCfg);
   const [lastSync, setLastSync] = useState(null);
   const [secs, setSecs] = useState(0);
   const [syncing, setSyncing] = useState(true);
@@ -58,7 +60,7 @@ function App() {
 
   useEffect(() => { sync(); }, []);
   useEffect(() => { if (!lastSync) return; const t = setInterval(() => setSecs(Math.floor((Date.now()-lastSync.getTime())/1000)),1000); return () => clearInterval(t); }, [lastSync]);
-  useEffect(() => { saveSaldos(saldos); }, [saldos]);
+  useEffect(() => { saveCfg(cfg); }, [cfg]);
 
   const sync = async () => {
     setSyncing(true); setErro(null);
@@ -73,36 +75,75 @@ function App() {
     setSyncing(false);
   };
 
+  const setSaldo  = (id,v) => setCfg((c)=>({ ...c, saldos:{...c.saldos,[id]:v} }));
+  const setRole   = (id,r) => setCfg((c)=>({ ...c, roles:{...c.roles,[id]:r} }));
+  const setApelido= (id,v) => setCfg((c)=>({ ...c, apelidos:{...c.apelidos,[id]:v} }));
+  const roleOf    = (id) => cfg.roles[id] || "op";
+
   const calc = useMemo(() => {
-    const cs = snapshot.contas.map((c,i) => ({ ...c, cor: PALETTE[i % PALETTE.length] }));
     const mov = {};
     snapshot.lancamentos.forEach((l) => {
       const off = Math.min(Math.max(diffDias(l.vencimento),0), HORIZON);
       mov[l.contaId] = mov[l.contaId] || {};
       mov[l.contaId][off] = (mov[l.contaId][off]||0) + (l.tipo==="entrada" ? l.valor : -l.valor);
     });
-    const contasCalc = cs.map((c) => {
-      let saldo = Number(saldos[c.id] || 0); const serie = [];
+    let cxi = 0;
+    const contas = snapshot.contas.map((c) => {
+      const role = cfg.roles[c.id] || "op";
+      const cor = role === "op" ? OP_COR : CX_PALETTE[(cxi++) % CX_PALETTE.length];
+      let saldo = Number(cfg.saldos[c.id] || 0); const serie = [];
       for (let i=0;i<=HORIZON;i++){ saldo += ((mov[c.id]&&mov[c.id][i])||0); serie.push(saldo); }
       const min = Math.min(...serie);
-      return { ...c, serie, hoje: serie[0], min, minIdx: serie.indexOf(min) };
+      return { id:c.id, nome:c.nome, apelido: cfg.apelidos[c.id] || c.nome, role, cor, serie, hoje: serie[0], min, minIdx: serie.indexOf(min) };
     });
-    const chartData = [];
-    for (let i=0;i<=HORIZON;i++){
-      const row = { label: fmtDate(dayDate(i)) }; let total = 0;
-      contasCalc.forEach((c) => { row[c.id] = c.serie[i]; total += c.serie[i]; });
-      row.total = total; chartData.push(row);
-    }
-    const totals = chartData.map((r) => r.total);
-    const minTotal = totals.length ? Math.min(...totals) : 0;
-    const minIdx = totals.indexOf(minTotal);
-    const negIdx = totals.findIndex((t) => t < 0);
-    return { chart: chartData, contas: contasCalc, consolidadoHoje: totals[0]||0, menor: minTotal,
-      menorDia: dayDate(minIdx<0?0:minIdx), primeiroNegativo: negIdx===-1?null:dayDate(negIdx) };
-  }, [snapshot, saldos]);
+    const op = contas.filter((c)=>c.role==="op");
+    const cx = contas.filter((c)=>c.role==="cx");
 
-  const { chart, contas, consolidadoHoje, menor, menorDia, primeiroNegativo } = calc;
+    const opSerie = [];
+    for (let i=0;i<=HORIZON;i++) opSerie.push(op.reduce((s,c)=>s+c.serie[i],0));
+
+    const chart = [];
+    for (let i=0;i<=HORIZON;i++){
+      const row = { label: fmtDate(dayDate(i)), __op__: opSerie[i] };
+      cx.forEach((c)=>{ row[c.id] = c.serie[i]; });
+      chart.push(row);
+    }
+    const minOp = opSerie.length ? Math.min(...opSerie) : 0;
+    const minIdx = opSerie.indexOf(minOp);
+    const negIdx = opSerie.findIndex((t)=>t<0);
+    const reservasHoje = cx.reduce((s,c)=>s+c.hoje,0);
+
+    return { contas, op, cx, chart, opHoje: opSerie[0]||0, minOp,
+      minDia: dayDate(minIdx<0?0:minIdx), primeiroNeg: negIdx===-1?null:dayDate(negIdx), reservasHoje };
+  }, [snapshot, cfg]);
+
+  const { op, cx, chart, opHoje, minOp, minDia, primeiroNeg, reservasHoje } = calc;
   const wrap = { background: "radial-gradient(1200px 500px at 80% -10%, rgba(200,162,75,0.10), transparent 60%)", minHeight: "100%", padding: "28px 24px 48px" };
+
+  const card = (c) => h("div",{key:c.id,className:"card",style:{padding:18}},
+    h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},
+      h("span",{style:{width:10,height:10,borderRadius:9,background:c.cor,flexShrink:0}}),
+      h("input",{value:c.apelido,onChange:(e)=>setApelido(c.id,e.target.value),
+        style:{background:"transparent",border:"none",outline:"none",color:"#EDE8DF",fontWeight:600,fontSize:15,width:"100%"}})
+    ),
+    h("div",{style:{display:"flex",gap:6,marginBottom:14}},
+      h("span",{onClick:()=>setRole(c.id,"op"),className:"rolebtn",
+        style:{background:c.role==="op"?"rgba(200,162,75,0.15)":"transparent",borderColor:c.role==="op"?"rgba(200,162,75,0.4)":"rgba(255,255,255,0.12)",color:c.role==="op"?"#E8C879":"#8A857A"}},"Operacional"),
+      h("span",{onClick:()=>setRole(c.id,"cx"),className:"rolebtn",
+        style:{background:c.role==="cx"?"rgba(111,168,160,0.15)":"transparent",borderColor:c.role==="cx"?"rgba(111,168,160,0.4)":"rgba(255,255,255,0.12)",color:c.role==="cx"?"#8FCBC0":"#8A857A"}},"Caixinha")
+    ),
+    h("div",{className:"uplabel",style:{marginBottom:4}},"Saldo de hoje"),
+    h("div",{style:{display:"flex",alignItems:"baseline",gap:4,marginBottom:12}},
+      h("span",{className:"mono",style:{color:"#8A857A"}},"R$"),
+      h("input",{type:"number",value:cfg.saldos[c.id]??"",placeholder:"0",
+        onChange:(e)=>setSaldo(c.id,parseFloat(e.target.value)||0),
+        className:"mono",style:{background:"transparent",border:"none",outline:"none",color:c.hoje<0?"#E08A7A":"#EDE8DF",fontSize:"1.4rem",width:"100%"}})
+    ),
+    c.role==="op" && h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:13,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:10}},
+      h("span",{style:{color:"#8A857A"}},"Menor em 90d"),
+      h("span",{className:"mono",style:{color:c.min<0?"#E08A7A":"#7FB89E"}}, brl(c.min)+" · "+fmtDate(dayDate(c.minIdx)))
+    )
+  );
 
   return h("div",{style:wrap},
     h("div",{style:{maxWidth:1100, margin:"0 auto"}},
@@ -126,16 +167,21 @@ function App() {
         )
       ),
       erro && h("div",{style:{background:"rgba(224,138,122,0.12)",border:"1px solid rgba(224,138,122,0.35)",color:"#E08A7A",borderRadius:12,padding:"12px 16px",marginBottom:24,fontSize:14}},"Erro: "+erro),
+
       h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))",marginBottom:28}},
-        Kpi({label:"Caixa consolidado hoje",value:brlc(consolidadoHoje),tone:"#EDE8DF"}),
-        Kpi({label:"Menor saldo projetado (90d)",value:brlc(menor),sub:fmtDate(menorDia),tone:menor<0?"#E08A7A":"#7FB89E"}),
-        Kpi({label:"Primeiro dia no vermelho",value:primeiroNegativo?fmtDate(primeiroNegativo):"Nenhum",tone:primeiroNegativo?"#E08A7A":"#7FB89E"})
+        Kpi({label:"Caixa operacional hoje",value:brlc(opHoje),tone:"#EDE8DF",sub:"Itaú + Asaas consolidados"}),
+        Kpi({label:"Menor operacional (90d)",value:brlc(minOp),sub:fmtDate(minDia),tone:minOp<0?"#E08A7A":"#7FB89E"}),
+        Kpi({label:"Primeiro dia no vermelho",value:primeiroNeg?fmtDate(primeiroNeg):"Nenhum",tone:primeiroNeg?"#E08A7A":"#7FB89E"}),
+        Kpi({label:"Guardado em caixinhas",value:brlc(reservasHoje),tone:"#8FCBC0",sub:"fora do operacional"})
       ),
+
       h("div",{className:"card",style:{padding:20,marginBottom:28}},
         h("div",{style:{display:"flex",flexWrap:"wrap",alignItems:"center",gap:"8px 20px",marginBottom:16}},
-          h("span",{className:"uplabel"},"Proje\u00e7\u00e3o 90 dias"),
-          contas.map((c)=>h("span",{key:c.id,style:{display:"flex",alignItems:"center",gap:8,fontSize:14}},
-            h("span",{style:{width:10,height:10,borderRadius:9,background:c.cor}}), c.nome))
+          h("span",{className:"uplabel"},"Projeção 90 dias"),
+          h("span",{style:{display:"flex",alignItems:"center",gap:8,fontSize:14}},
+            h("span",{style:{width:12,height:3,borderRadius:2,background:OP_COR}}), "Operacional"),
+          cx.map((c)=>h("span",{key:c.id,style:{display:"flex",alignItems:"center",gap:8,fontSize:14}},
+            h("span",{style:{width:10,height:10,borderRadius:9,background:c.cor}}), c.apelido))
         ),
         h("div",{style:{width:"100%",height:300}},
           h(ResponsiveContainer,null,
@@ -143,34 +189,24 @@ function App() {
               h(CartesianGrid,{stroke:"rgba(255,255,255,0.06)",vertical:false}),
               h(XAxis,{dataKey:"label",tick:{fill:"#6B675E",fontSize:11,fontFamily:"JetBrains Mono"},interval:14,tickLine:false,axisLine:{stroke:"rgba(255,255,255,0.1)"}}),
               h(YAxis,{tickFormatter:(v)=>Math.round(v/1000)+"k",tick:{fill:"#6B675E",fontSize:11,fontFamily:"JetBrains Mono"},tickLine:false,axisLine:false,width:46}),
-              h(Tooltip,{contentStyle:{background:"#16161A",border:"1px solid rgba(255,255,255,0.12)",borderRadius:12},labelStyle:{color:"#8A857A"},formatter:(v,n)=>[brl(v),(contas.find(c=>c.id===n)||{}).nome||n]}),
+              h(Tooltip,{contentStyle:{background:"#16161A",border:"1px solid rgba(255,255,255,0.12)",borderRadius:12},labelStyle:{color:"#8A857A"},
+                formatter:(v,n)=>[brl(v), n==="__op__"?"Operacional":((cx.find(c=>c.id===n)||{}).apelido||n)]}),
               h(ReferenceLine,{y:0,stroke:"#E08A7A",strokeDasharray:"4 4",strokeOpacity:0.6}),
-              contas.map((c)=>h(Line,{key:c.id,type:"monotone",dataKey:c.id,stroke:c.cor,strokeWidth:2,dot:false}))
+              cx.map((c)=>h(Line,{key:c.id,type:"monotone",dataKey:c.id,stroke:c.cor,strokeWidth:1.5,dot:false,strokeOpacity:0.8})),
+              h(Line,{type:"monotone",dataKey:"__op__",stroke:OP_COR,strokeWidth:2.5,dot:false})
             )
           )
         )
       ),
-      h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(250px, 1fr))"}},
-        contas.map((c)=>h("div",{key:c.id,className:"card",style:{padding:20}},
-          h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:16}},
-            h("span",{style:{width:10,height:10,borderRadius:9,background:c.cor}}),
-            h("span",{style:{fontWeight:600}},c.nome)
-          ),
-          h("div",{className:"uplabel",style:{marginBottom:4}},"\u270E Saldo inicial (voc\u00ea informa)"),
-          h("div",{style:{display:"flex",alignItems:"baseline",gap:4,marginBottom:16}},
-            h("span",{className:"mono",style:{color:"#8A857A"}},"R$"),
-            h("input",{type:"number",value:saldos[c.id]??"",placeholder:"0",
-              onChange:(e)=>setSaldos((s)=>({...s,[c.id]:parseFloat(e.target.value)||0})),
-              className:"mono",style:{background:"transparent",border:"none",outline:"none",color:c.hoje<0?"#E08A7A":"#EDE8DF",fontSize:"1.5rem",width:"100%"}})
-          ),
-          h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:14,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:12}},
-            h("span",{style:{color:"#8A857A"}},"Menor em 90d"),
-            h("span",{className:"mono",style:{color:c.min<0?"#E08A7A":"#7FB89E"}}, brl(c.min)+" \u00b7 "+fmtDate(dayDate(c.minIdx)))
-          )
-        ))
-      ),
+
+      h("div",{className:"sechead"},"Operacional · caixa mãe"),
+      h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",marginBottom:28}}, op.map(card)),
+
+      cx.length>0 && h("div",{className:"sechead"},"Reservas · caixinhas"),
+      cx.length>0 && h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))"}}, cx.map(card)),
+
       h("p",{style:{color:"#56524A",fontSize:12,marginTop:32}},
-        "Saldo inicial \u00e9 informado por voc\u00ea (a API do Gest\u00e3o Click n\u00e3o fornece o saldo da conta) e fica salvo neste navegador. Os lan\u00e7amentos a vencer v\u00eam da API a cada Atualizar.")
+        "Marque cada conta como Operacional (caixa de trabalho) ou Caixinha (dinheiro reservado). O Operacional soma todas as contas de trabalho numa linha só, então transferências entre Asaas e Itaú se anulam. Saldos e apelidos ficam salvos neste navegador.")
     )
   );
 }
@@ -178,7 +214,7 @@ function App() {
 function Kpi({label,value,sub,tone}) {
   return h("div",{className:"card",style:{padding:20}},
     h("div",{className:"uplabel",style:{marginBottom:12}},label),
-    h("div",{className:"mono",style:{color:tone,fontSize:"1.6rem",fontWeight:500}},value),
+    h("div",{className:"mono",style:{color:tone,fontSize:"1.5rem",fontWeight:500}},value),
     sub && h("div",{className:"mono",style:{color:"#6B675E",fontSize:12,marginTop:4}},sub)
   );
 }
