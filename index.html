@@ -3,32 +3,41 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="theme-color" content="#0B0B0D" />
+<meta name="theme-color" content="#FFFFFF" />
 <title>Saldo Projetado · Mínimo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body, #root { height: 100%; }
-  body { background: #0B0B0D; color: #EDE8DF; font-family: 'Familjen Grotesk', sans-serif; -webkit-font-smoothing: antialiased; }
-  input, select { font-family: inherit; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-  .card { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; }
-  .uplabel { color: #8A857A; font-size: 11px; text-transform: uppercase; font-weight: 500; letter-spacing: 0.04em; }
-  .mono { font-family: 'JetBrains Mono', monospace; }
-  .sechead { color:#8A857A; font-size:12px; text-transform:uppercase; letter-spacing:0.1em; font-weight:600; margin:8px 2px 12px; }
-  ::-webkit-scrollbar { height: 8px; width: 8px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
-  #boot { display:flex; align-items:center; justify-content:center; height:100%; color:#6B675E; font-size:14px; }
-  .rolebtn { font-size:11px; padding:4px 10px; border-radius:999px; cursor:pointer; border:1px solid transparent; }
-  .chip { font-size:12px; padding:5px 11px; border-radius:999px; cursor:pointer; border:1px solid rgba(255,255,255,0.12); color:#8A857A; background:transparent; white-space:nowrap; }
-  .chip.on { background:rgba(200,162,75,0.15); border-color:rgba(200,162,75,0.4); color:#E8C879; }
-  .dateinput { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.12); color:#EDE8DF; border-radius:8px; padding:6px 10px; font-size:13px; color-scheme:dark; }
-  table { width:100%; border-collapse:collapse; }
-  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:#8A857A; font-weight:500; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); }
-  td { padding:11px 12px; font-size:14px; border-bottom:1px solid rgba(255,255,255,0.05); }
-  tr:last-child td { border-bottom:none; }
+  :root{
+    --bg:#F5F6F8; --card:#FFFFFF; --border:#E7E9EE; --ink:#1A1D24; --ink2:#667085; --ink3:#98A2B3;
+    --brand:#FE8800; --brand2:#FFB026; --green:#16A34A; --red:#E0492F;
+    --shadow:0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.04);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body,#root{ height:100%; }
+  body{ background:var(--bg); color:var(--ink); font-family:'Familjen Grotesk',sans-serif; -webkit-font-smoothing:antialiased; }
+  input,select,button{ font-family:inherit; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+  .card{ background:var(--card); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); }
+  .uplabel{ color:var(--ink2); font-size:11px; text-transform:uppercase; font-weight:600; letter-spacing:.05em; }
+  .mono{ font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; }
+  .sechead{ color:var(--ink2); font-size:12px; text-transform:uppercase; letter-spacing:.08em; font-weight:600; margin:6px 2px 12px; }
+  .wordmark{ font-weight:700; font-size:22px; letter-spacing:-.01em; background:linear-gradient(90deg,var(--brand2),var(--brand)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .chip{ font-size:12.5px; padding:7px 13px; border-radius:9px; cursor:pointer; border:1px solid var(--border); color:var(--ink2); background:#fff; white-space:nowrap; font-weight:500; transition:all .12s; }
+  .chip:hover{ border-color:var(--brand2); }
+  .chip.on{ background:var(--brand); border-color:var(--brand); color:#fff; }
+  .dateinput{ background:#fff; border:1px solid var(--border); color:var(--ink); border-radius:9px; padding:7px 10px; font-size:13px; color-scheme:light; }
+  .rolebtn{ font-size:11px; padding:5px 11px; border-radius:8px; cursor:pointer; border:1px solid var(--border); background:#fff; color:var(--ink2); font-weight:500; }
+  .rolebtn.on-op{ background:rgba(254,136,0,.1); border-color:rgba(254,136,0,.45); color:#B45309; }
+  .rolebtn.on-cx{ background:rgba(14,148,136,.1); border-color:rgba(14,148,136,.4); color:#0E7C72; }
+  .gostbtn{ display:flex; align-items:center; gap:8px; background:var(--brand); border:none; color:#fff; border-radius:10px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; box-shadow:0 1px 2px rgba(254,136,0,.3); }
+  .gostbtn:hover{ background:#ED7D00; }
+  ::-webkit-scrollbar{ height:8px; width:8px; } ::-webkit-scrollbar-thumb{ background:#D6D9E0; border-radius:8px; }
+  #boot{ display:flex; align-items:center; justify-content:center; height:100%; color:var(--ink3); font-size:14px; }
+  .topbar{ background:#fff; border-bottom:1px solid var(--border); }
+  @media (max-width:600px){ .pad{ padding:18px 14px 40px !important; } .h1{ font-size:1.5rem !important; } }
 </style>
 </head>
 <body>
@@ -40,12 +49,11 @@ import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "https://esm.sh/recharts@2.12.7?deps=react@18.2.0,react-dom@18.2.0";
 
 const h = React.createElement;
-
 const SYNC_URL = "/api/gestaoclick-sync";
 const HORIZON = 90;
 const KEY = "minimo_fluxo_config_v2";
-const OP_COR = "#C8A24B";
-const CX_PALETTE = ["#6FA8A0","#9A7BB0","#C97B7B","#7B92C9","#8FB86F","#C98F5A"];
+const OP_COR = "#FE8800";
+const CX_PALETTE = ["#0E9488","#7C5CBF","#2563EB","#D9488B","#0EA5C2","#C2700C"];
 
 const brl  = (v) => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
 const brlc = (v) => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
@@ -55,7 +63,6 @@ const toYMD = (d) => { const x=new Date(d); return x.getFullYear()+"-"+String(x.
 const diffDias = (s) => Math.round((parseYMD(s) - today)/86400000);
 const dayDate  = (i) => { const d = new Date(today); d.setDate(d.getDate()+i); return d; };
 const fmtDate  = (d) => d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
-const fmtFull  = (s) => parseYMD(s).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"});
 const loadCfg = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {saldos:{},roles:{},apelidos:{}}; } catch { return {saldos:{},roles:{},apelidos:{}}; } };
 const saveCfg = (c) => { try { localStorage.setItem(KEY, JSON.stringify(c)); } catch {} };
 
@@ -66,7 +73,6 @@ function App() {
   const [secs, setSecs] = useState(0);
   const [syncing, setSyncing] = useState(true);
   const [erro, setErro] = useState(null);
-  // filtro de datas (vazio = horizonte padrão)
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
   const [atalho, setAtalho] = useState("90d");
@@ -92,17 +98,14 @@ function App() {
   const setRole   = (id,r) => setCfg((c)=>({ ...c, roles:{...c.roles,[id]:r} }));
   const setApelido= (id,v) => setCfg((c)=>({ ...c, apelidos:{...c.apelidos,[id]:v} }));
 
-  // aplica atalho de período
   const aplicarAtalho = (a) => {
     setAtalho(a);
     if (a==="7d") { setDe(toYMD(today)); setAte(toYMD(dayDate(7))); }
     else if (a==="mes") { const fim=new Date(today.getFullYear(),today.getMonth()+1,0); setDe(toYMD(today)); setAte(toYMD(fim)); }
     else if (a==="30d") { setDe(toYMD(today)); setAte(toYMD(dayDate(30))); }
-    else if (a==="90d") { setDe(""); setAte(""); }
-    else if (a==="tudo") { setDe(""); setAte(""); }
+    else { setDe(""); setAte(""); }
   };
 
-  // janela efetiva (em offsets de dia a partir de hoje)
   const janela = useMemo(() => {
     let ini = 0, fim = HORIZON;
     if (de)  ini = Math.max(0, diffDias(de));
@@ -129,11 +132,8 @@ function App() {
     });
     const op = contas.filter((c)=>c.role==="op");
     const cx = contas.filter((c)=>c.role==="cx");
-    const apelidoDe = {}; contas.forEach((c)=>{ apelidoDe[c.id]=c.apelido; });
-
     const opSerie = [];
     for (let i=0;i<=HORIZON;i++) opSerie.push(op.reduce((s,c)=>s+c.serie[i],0));
-
     const chartFull = [];
     for (let i=0;i<=HORIZON;i++){
       const row = { off:i, label: fmtDate(dayDate(i)), __op__: opSerie[i] };
@@ -141,174 +141,133 @@ function App() {
       chartFull.push(row);
     }
     const chart = chartFull.filter((r)=> r.off>=janela.ini && r.off<=janela.fim);
-
     const minOp = opSerie.length ? Math.min(...opSerie) : 0;
     const minIdx = opSerie.indexOf(minOp);
     const negIdx = opSerie.findIndex((t)=>t<0);
     const reservasHoje = cx.reduce((s,c)=>s+c.hoje,0);
-
-    // lista de lançamentos dentro da janela, ordenada por vencimento
-    const lista = snapshot.lancamentos
-      .map((l)=>({ ...l, off: Math.min(Math.max(diffDias(l.vencimento),0),HORIZON), apelido: apelidoDe[l.contaId] || l.contaNome || l.contaId }))
-      .filter((l)=> l.off>=janela.ini && l.off<=janela.fim)
-      .sort((a,b)=> parseYMD(a.vencimento)-parseYMD(b.vencimento));
-    const totEnt = lista.filter(l=>l.tipo==="entrada").reduce((s,l)=>s+l.valor,0);
-    const totSai = lista.filter(l=>l.tipo==="saida").reduce((s,l)=>s+l.valor,0);
-
     return { contas, op, cx, chart, opHoje: opSerie[0]||0, minOp,
-      minDia: dayDate(minIdx<0?0:minIdx), primeiroNeg: negIdx===-1?null:dayDate(negIdx), reservasHoje,
-      lista, totEnt, totSai };
+      minDia: dayDate(minIdx<0?0:minIdx), primeiroNeg: negIdx===-1?null:dayDate(negIdx), reservasHoje };
   }, [snapshot, cfg, janela]);
 
-  const { op, cx, chart, opHoje, minOp, minDia, primeiroNeg, reservasHoje, lista, totEnt, totSai } = calc;
-  const wrap = { background: "radial-gradient(1200px 500px at 80% -10%, rgba(200,162,75,0.10), transparent 60%)", minHeight: "100%", padding: "28px 24px 48px" };
+  const { op, cx, chart, opHoje, minOp, minDia, primeiroNeg, reservasHoje } = calc;
 
   const card = (c) => h("div",{key:c.id,className:"card",style:{padding:18}},
     h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},
-      h("span",{style:{width:10,height:10,borderRadius:9,background:c.cor,flexShrink:0}}),
+      h("span",{style:{width:9,height:9,borderRadius:9,background:c.cor,flexShrink:0}}),
       h("input",{value:c.apelido,onChange:(e)=>setApelido(c.id,e.target.value),
-        style:{background:"transparent",border:"none",outline:"none",color:"#EDE8DF",fontWeight:600,fontSize:15,width:"100%"}})
+        style:{background:"transparent",border:"none",outline:"none",color:"var(--ink)",fontWeight:600,fontSize:15,width:"100%"}})
     ),
     h("div",{style:{display:"flex",gap:6,marginBottom:14}},
-      h("span",{onClick:()=>setRole(c.id,"op"),className:"rolebtn",
-        style:{background:c.role==="op"?"rgba(200,162,75,0.15)":"transparent",borderColor:c.role==="op"?"rgba(200,162,75,0.4)":"rgba(255,255,255,0.12)",color:c.role==="op"?"#E8C879":"#8A857A"}},"Operacional"),
-      h("span",{onClick:()=>setRole(c.id,"cx"),className:"rolebtn",
-        style:{background:c.role==="cx"?"rgba(111,168,160,0.15)":"transparent",borderColor:c.role==="cx"?"rgba(111,168,160,0.4)":"rgba(255,255,255,0.12)",color:c.role==="cx"?"#8FCBC0":"#8A857A"}},"Caixinha")
+      h("span",{onClick:()=>setRole(c.id,"op"),className:"rolebtn"+(c.role==="op"?" on-op":"")},"Operacional"),
+      h("span",{onClick:()=>setRole(c.id,"cx"),className:"rolebtn"+(c.role==="cx"?" on-cx":"")},"Caixinha")
     ),
     h("div",{className:"uplabel",style:{marginBottom:4}},"Saldo de hoje"),
     h("div",{style:{display:"flex",alignItems:"baseline",gap:4,marginBottom:12}},
-      h("span",{className:"mono",style:{color:"#8A857A"}},"R$"),
+      h("span",{className:"mono",style:{color:"var(--ink3)"}},"R$"),
       h("input",{type:"number",value:cfg.saldos[c.id]??"",placeholder:"0",
         onChange:(e)=>setSaldo(c.id,parseFloat(e.target.value)||0),
-        className:"mono",style:{background:"transparent",border:"none",outline:"none",color:c.hoje<0?"#E08A7A":"#EDE8DF",fontSize:"1.4rem",width:"100%"}})
+        className:"mono",style:{background:"transparent",border:"none",outline:"none",color:c.hoje<0?"var(--red)":"var(--ink)",fontSize:"1.4rem",width:"100%",fontWeight:500}})
     ),
-    c.role==="op" && h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:13,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:10}},
-      h("span",{style:{color:"#8A857A"}},"Menor em 90d"),
-      h("span",{className:"mono",style:{color:c.min<0?"#E08A7A":"#7FB89E"}}, brl(c.min)+" · "+fmtDate(dayDate(c.minIdx)))
+    c.role==="op" && h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:13,borderTop:"1px solid var(--border)",paddingTop:10}},
+      h("span",{style:{color:"var(--ink2)"}},"Menor em 90d"),
+      h("span",{className:"mono",style:{color:c.min<0?"var(--red)":"var(--green)",fontWeight:500}}, brl(c.min)+" · "+fmtDate(dayDate(c.minIdx)))
     )
   );
 
   const atalhos = [["7d","Próx. 7 dias"],["mes","Este mês"],["30d","Próx. 30 dias"],["90d","90 dias"]];
 
-  return h("div",{style:wrap},
-    h("div",{style:{maxWidth:1100, margin:"0 auto"}},
-      h("div",{style:{display:"flex",flexWrap:"wrap",alignItems:"flex-end",justifyContent:"space-between",gap:16,marginBottom:28}},
-        h("div",null,
-          h("div",{className:"uplabel",style:{letterSpacing:"0.18em",marginBottom:4}},"Mínimo · Financeiro"),
-          h("h1",{style:{fontFamily:"'Instrument Serif', serif",fontSize:"2.6rem",lineHeight:1,fontWeight:400}},"Saldo projetado")
+  return h("div",null,
+    // top bar
+    h("div",{className:"topbar"},
+      h("div",{style:{maxWidth:1120,margin:"0 auto",padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,flexWrap:"wrap"}},
+        h("div",{style:{display:"flex",alignItems:"center",gap:12}},
+          h("img",{src:"/logo.svg",alt:"Mínimo",style:{height:26,display:"block"},onError:(e)=>{ e.target.style.display="none"; e.target.nextSibling.style.display="inline"; }}),
+          h("span",{className:"wordmark",style:{display:"none"}},"mínimo")
         ),
-        h("div",{style:{display:"flex",alignItems:"center",gap:16}},
+        h("div",{style:{display:"flex",alignItems:"center",gap:14}},
           h("div",{style:{textAlign:"right"}},
-            h("div",{style:{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:8,color:erro?"#E08A7A":"#7FB89E"}},
-              h("span",{style:{width:8,height:8,borderRadius:8,background:erro?"#E08A7A":"#7FB89E",animation:"pulse 2s infinite"}}),
-              h("span",{style:{fontSize:12,fontWeight:500}}, erro?"Falha na sincronização":"Sincronizado com Gestão Click")
+            h("div",{style:{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:7,color:erro?"var(--red)":"var(--green)"}},
+              h("span",{style:{width:7,height:7,borderRadius:7,background:erro?"var(--red)":"var(--green)",animation:"pulse 2s infinite"}}),
+              h("span",{style:{fontSize:12,fontWeight:600}}, erro?"Falha":"Sincronizado")
             ),
-            h("div",{className:"mono",style:{fontSize:12,color:"#6B675E",marginTop:2}}, lastSync?("há "+secs+"s"):"—")
+            h("div",{className:"mono",style:{fontSize:11,color:"var(--ink3)",marginTop:1}}, lastSync?("há "+secs+"s"):"—")
           ),
-          h("button",{onClick:sync,disabled:syncing,style:{display:"flex",alignItems:"center",gap:8,background:"rgba(200,162,75,0.12)",border:"1px solid rgba(200,162,75,0.35)",color:"#E8C879",borderRadius:999,padding:"9px 16px",fontSize:14,fontWeight:500,cursor:"pointer"}},
-            h("span",{style:{display:"inline-block",animation:syncing?"spin 0.7s linear infinite":"none"}},"\u27F3"),
+          h("button",{onClick:sync,disabled:syncing,className:"gostbtn"},
+            h("span",{style:{display:"inline-block",animation:syncing?"spin .7s linear infinite":"none"}},"\u27F3"),
             syncing?"Puxando\u2026":"Atualizar"
           )
         )
+      )
+    ),
+    // page
+    h("div",{className:"pad",style:{maxWidth:1120,margin:"0 auto",padding:"28px 24px 48px"}},
+      h("div",{style:{marginBottom:24}},
+        h("h1",{className:"h1",style:{fontSize:"1.9rem",fontWeight:700,letterSpacing:"-.02em"}},"Saldo projetado"),
+        h("p",{style:{color:"var(--ink2)",fontSize:14,marginTop:2}},"Projeção de caixa a partir do Gestão Click")
       ),
-      erro && h("div",{style:{background:"rgba(224,138,122,0.12)",border:"1px solid rgba(224,138,122,0.35)",color:"#E08A7A",borderRadius:12,padding:"12px 16px",marginBottom:24,fontSize:14}},"Erro: "+erro),
+      erro && h("div",{style:{background:"#FDECE8",border:"1px solid #F5C6BB",color:"#B42318",borderRadius:12,padding:"12px 16px",marginBottom:24,fontSize:14}},"Erro: "+erro),
 
-      h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))",marginBottom:28}},
-        Kpi({label:"Caixa operacional hoje",value:brlc(opHoje),tone:"#EDE8DF",sub:"Itaú + Asaas consolidados"}),
-        Kpi({label:"Menor operacional (90d)",value:brlc(minOp),sub:fmtDate(minDia),tone:minOp<0?"#E08A7A":"#7FB89E"}),
-        Kpi({label:"Primeiro dia no vermelho",value:primeiroNeg?fmtDate(primeiroNeg):"Nenhum",tone:primeiroNeg?"#E08A7A":"#7FB89E"}),
-        Kpi({label:"Guardado em caixinhas",value:brlc(reservasHoje),tone:"#8FCBC0",sub:"fora do operacional"})
+      h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(210px, 1fr))",marginBottom:24}},
+        Kpi({label:"Caixa operacional hoje",value:brlc(opHoje),tone:opHoje<0?"var(--red)":"var(--ink)",sub:"Itaú + Asaas consolidados"}),
+        Kpi({label:"Menor operacional (90d)",value:brlc(minOp),sub:fmtDate(minDia),tone:minOp<0?"var(--red)":"var(--green)"}),
+        Kpi({label:"Primeiro dia no vermelho",value:primeiroNeg?fmtDate(primeiroNeg):"Nenhum",tone:primeiroNeg?"var(--red)":"var(--green)"}),
+        Kpi({label:"Guardado em caixinhas",value:brlc(reservasHoje),tone:"#0E7C72",sub:"fora do operacional"})
       ),
 
-      // ===== FILTRO DE PERÍODO =====
       h("div",{className:"card",style:{padding:16,marginBottom:20,display:"flex",flexWrap:"wrap",alignItems:"center",gap:12}},
-        h("span",{className:"uplabel"},"Período"),
+        h("span",{className:"uplabel",style:{marginRight:2}},"Período"),
         h("div",{style:{display:"flex",gap:8,flexWrap:"wrap"}},
           atalhos.map(([k,txt])=>h("span",{key:k,className:"chip"+(atalho===k?" on":""),onClick:()=>aplicarAtalho(k)},txt))
         ),
-        h("div",{style:{display:"flex",alignItems:"center",gap:8,marginLeft:"auto"}},
-          h("span",{style:{color:"#8A857A",fontSize:13}},"De"),
+        h("div",{style:{display:"flex",alignItems:"center",gap:8,marginLeft:"auto",flexWrap:"wrap"}},
+          h("span",{style:{color:"var(--ink2)",fontSize:13}},"De"),
           h("input",{type:"date",className:"dateinput",value:de,onChange:(e)=>{ setDe(e.target.value); setAtalho(""); }}),
-          h("span",{style:{color:"#8A857A",fontSize:13}},"até"),
+          h("span",{style:{color:"var(--ink2)",fontSize:13}},"até"),
           h("input",{type:"date",className:"dateinput",value:ate,onChange:(e)=>{ setAte(e.target.value); setAtalho(""); }})
         )
       ),
 
       h("div",{className:"card",style:{padding:20,marginBottom:28}},
-        h("div",{style:{display:"flex",flexWrap:"wrap",alignItems:"center",gap:"8px 20px",marginBottom:16}},
+        h("div",{style:{display:"flex",flexWrap:"wrap",alignItems:"center",gap:"8px 20px",marginBottom:18}},
           h("span",{className:"uplabel"},"Projeção do saldo"),
-          h("span",{style:{display:"flex",alignItems:"center",gap:8,fontSize:14}},
-            h("span",{style:{width:12,height:3,borderRadius:2,background:OP_COR}}), "Operacional"),
-          cx.map((c)=>h("span",{key:c.id,style:{display:"flex",alignItems:"center",gap:8,fontSize:14}},
-            h("span",{style:{width:10,height:10,borderRadius:9,background:c.cor}}), c.apelido))
+          h("span",{style:{display:"flex",alignItems:"center",gap:7,fontSize:13.5,color:"var(--ink2)"}},
+            h("span",{style:{width:14,height:3,borderRadius:2,background:OP_COR}}), "Operacional"),
+          cx.map((c)=>h("span",{key:c.id,style:{display:"flex",alignItems:"center",gap:7,fontSize:13.5,color:"var(--ink2)"}},
+            h("span",{style:{width:9,height:9,borderRadius:9,background:c.cor}}), c.apelido))
         ),
         h("div",{style:{width:"100%",height:300}},
           h(ResponsiveContainer,null,
             h(LineChart,{data:chart,margin:{top:6,right:8,left:4,bottom:0}},
-              h(CartesianGrid,{stroke:"rgba(255,255,255,0.06)",vertical:false}),
-              h(XAxis,{dataKey:"label",tick:{fill:"#6B675E",fontSize:11,fontFamily:"JetBrains Mono"},interval:"preserveStartEnd",minTickGap:40,tickLine:false,axisLine:{stroke:"rgba(255,255,255,0.1)"}}),
-              h(YAxis,{tickFormatter:(v)=>Math.round(v/1000)+"k",tick:{fill:"#6B675E",fontSize:11,fontFamily:"JetBrains Mono"},tickLine:false,axisLine:false,width:46}),
-              h(Tooltip,{contentStyle:{background:"#16161A",border:"1px solid rgba(255,255,255,0.12)",borderRadius:12},labelStyle:{color:"#8A857A"},
+              h(CartesianGrid,{stroke:"#EEF0F3",vertical:false}),
+              h(XAxis,{dataKey:"label",tick:{fill:"#98A2B3",fontSize:11,fontFamily:"JetBrains Mono"},interval:"preserveStartEnd",minTickGap:42,tickLine:false,axisLine:{stroke:"#E7E9EE"}}),
+              h(YAxis,{tickFormatter:(v)=>Math.round(v/1000)+"k",tick:{fill:"#98A2B3",fontSize:11,fontFamily:"JetBrains Mono"},tickLine:false,axisLine:false,width:46}),
+              h(Tooltip,{contentStyle:{background:"#fff",border:"1px solid var(--border)",borderRadius:12,boxShadow:"0 4px 12px rgba(16,24,40,.08)"},labelStyle:{color:"var(--ink2)"},
                 formatter:(v,n)=>[brl(v), n==="__op__"?"Operacional":((cx.find(c=>c.id===n)||{}).apelido||n)]}),
-              h(ReferenceLine,{y:0,stroke:"#E08A7A",strokeDasharray:"4 4",strokeOpacity:0.6}),
-              cx.map((c)=>h(Line,{key:c.id,type:"monotone",dataKey:c.id,stroke:c.cor,strokeWidth:1.5,dot:false,strokeOpacity:0.8})),
+              h(ReferenceLine,{y:0,stroke:"var(--red)",strokeDasharray:"4 4",strokeOpacity:.5}),
+              cx.map((c)=>h(Line,{key:c.id,type:"monotone",dataKey:c.id,stroke:c.cor,strokeWidth:1.5,dot:false,strokeOpacity:.85})),
               h(Line,{type:"monotone",dataKey:"__op__",stroke:OP_COR,strokeWidth:2.5,dot:false})
             )
           )
         )
       ),
 
-      // ===== LISTA DE LANÇAMENTOS =====
-      h("div",{className:"sechead"},"Lançamentos no período · "+lista.length),
-      h("div",{className:"card",style:{padding:0,marginBottom:28,overflow:"hidden"}},
-        h("div",{style:{overflowX:"auto"}},
-          h("table",null,
-            h("thead",null,h("tr",null,
-              h("th",null,"Descrição"), h("th",null,"Conta"), h("th",null,"Vencimento"),
-              h("th",{style:{textAlign:"center"}},"Tipo"), h("th",{style:{textAlign:"right"}},"Valor")
-            )),
-            h("tbody",null,
-              lista.length===0
-                ? h("tr",null,h("td",{colSpan:5,style:{textAlign:"center",color:"#6B675E",padding:"24px"}},"Nenhum lançamento neste período."))
-                : lista.map((l,i)=>h("tr",{key:i},
-                    h("td",null, l.descricao || "—"),
-                    h("td",{style:{color:"#8A857A"}}, l.apelido),
-                    h("td",{className:"mono",style:{color:"#8A857A"}}, fmtFull(l.vencimento)),
-                    h("td",{style:{textAlign:"center"}},
-                      h("span",{style:{fontSize:12,padding:"3px 9px",borderRadius:999,
-                        background:l.tipo==="entrada"?"rgba(127,184,158,0.15)":"rgba(224,138,122,0.15)",
-                        color:l.tipo==="entrada"?"#8FCBC0":"#E08A7A"}}, l.tipo==="entrada"?"Entra":"Sai")),
-                    h("td",{className:"mono",style:{textAlign:"right",color:l.tipo==="entrada"?"#8FCBC0":"#E08A7A"}},
-                      (l.tipo==="entrada"?"+":"−")+brlc(l.valor).replace("R$","R$ "))
-                  ))
-            ),
-            lista.length>0 && h("tfoot",null,h("tr",null,
-              h("td",{colSpan:4,style:{borderTop:"1px solid rgba(255,255,255,0.12)",color:"#8A857A",fontSize:13}},
-                "Entra "+brl(totEnt)+"  ·  Sai "+brl(totSai)),
-              h("td",{className:"mono",style:{borderTop:"1px solid rgba(255,255,255,0.12)",textAlign:"right",fontWeight:600,color:(totEnt-totSai)<0?"#E08A7A":"#8FCBC0"}},
-                brl(totEnt-totSai))
-            ))
-          )
-        )
-      ),
-
       h("div",{className:"sechead"},"Operacional · caixa mãe"),
-      h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",marginBottom:28}}, op.map(card)),
+      h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(230px, 1fr))",marginBottom:28}}, op.map(card)),
 
       cx.length>0 && h("div",{className:"sechead"},"Reservas · caixinhas"),
-      cx.length>0 && h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))"}}, cx.map(card)),
+      cx.length>0 && h("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fit, minmax(230px, 1fr))"}}, cx.map(card)),
 
-      h("p",{style:{color:"#56524A",fontSize:12,marginTop:32}},
-        "O filtro de período recorta o gráfico e a lista. Marque cada conta como Operacional ou Caixinha; o Operacional soma as contas de trabalho numa linha só. Saldos e apelidos ficam salvos neste navegador.")
+      h("p",{style:{color:"var(--ink3)",fontSize:12,marginTop:32}},
+        "O filtro de período recorta o gráfico. Marque cada conta como Operacional ou Caixinha; o Operacional soma as contas de trabalho numa linha só. Saldos e apelidos ficam salvos neste navegador.")
     )
   );
 }
 
 function Kpi({label,value,sub,tone}) {
-  return h("div",{className:"card",style:{padding:20}},
-    h("div",{className:"uplabel",style:{marginBottom:12}},label),
-    h("div",{className:"mono",style:{color:tone,fontSize:"1.5rem",fontWeight:500}},value),
-    sub && h("div",{className:"mono",style:{color:"#6B675E",fontSize:12,marginTop:4}},sub)
+  return h("div",{className:"card",style:{padding:18}},
+    h("div",{className:"uplabel",style:{marginBottom:10}},label),
+    h("div",{className:"mono",style:{color:tone,fontSize:"1.5rem",fontWeight:600}},value),
+    sub && h("div",{style:{color:"var(--ink3)",fontSize:12,marginTop:4}},sub)
   );
 }
 
